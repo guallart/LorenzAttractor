@@ -5,8 +5,7 @@ namespace Lorenz;
 
 public static class Init
 {
-  private static float NextCoord(Random rng) =>
-    (float)(rng.NextDouble() * 2.0 - 1.0) * Constants.InitRange;
+  private static float NextCoord(Random rng) => (float)(rng.NextDouble() * 2.0 - 1.0) * Constants.InitRange;
 
   public static float[] GaussianWeights()
   {

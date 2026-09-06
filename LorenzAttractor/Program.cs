@@ -42,10 +42,11 @@ static class Program
     var pipe = ffmpeg.StandardInput.BaseStream;
 
     var frameBytes = new byte[PixelCount * 4];
+    var cam = new Camera();
 
     for (int frame = 0; frame < Constants.TotalFrames; frame++)
     {
-      Matrix4x4 viewProjection = Camera.GetViewProjection(frame);
+      Matrix4x4 viewProjection = cam.GetViewProjection();
       density.MemSetToZero();
 
       for (int s = 0; s < Constants.SubstepsPerFrame; s++)
