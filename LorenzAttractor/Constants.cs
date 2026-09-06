@@ -11,7 +11,7 @@ public static class Constants
   public const int TotalFrames = Fps * 60;
 
   public const int SubstepsPerFrame = 8;
-  public const float Dt = 2e-5f;
+  public const float Dt = 5e-5f;
 
   public const float Sigma = 10.0f;
   public const float Rho = 28.0f;
@@ -20,8 +20,8 @@ public static class Constants
   public const float InitRange = 30.0f;
   public const int Seed = 1234;
 
-  public const float OrbitRadius = 200.0f;
-  public const float OrbitHeight = 120.0f;
+  public const float OrbitRadius = 75.0f;
+  public const float OrbitHeight = 25.0f;
   public const float CenterX = 0.0f;
   public const float CenterY = 0.0f;
   public const float CenterZ = 30.0f;
@@ -35,9 +35,9 @@ public static class Constants
   public const int BlurRadius = 3;
   public const float BlurSigma = 2.0f;
 
-  public const float TintR = 0.55f;
-  public const float TintG = 0.78f;
-  public const float TintB = 1.00f;
+  // Controls how quickly particle color saturates from blue (slow) to red
+  // (fast) as speed increases. Lower = more particles read as "fast" (red).
+  public const float SpeedNormalization = 50.0f;
 
   public const int AxisSamples = 600;
   public const int AxisThickness = 1;
