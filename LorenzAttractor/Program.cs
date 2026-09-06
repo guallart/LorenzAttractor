@@ -18,17 +18,20 @@ static class Program
     Console.WriteLine($"Accelerator: {accelerator.Name}");
 
     using var positions = accelerator.Allocate1D(Init.InitialPositions());
-    using var density = accelerator.Allocate1D<float>(PixelCount);
+    using var densityR = accelerator.Allocate1D<float>(PixelCount);
+    using var densityG = accelerator.Allocate1D<float>(PixelCount);
+    using var densityB = accelerator.Allocate1D<float>(PixelCount);
     using var tempA = accelerator.Allocate1D<float>(PixelCount);
     using var tempB = accelerator.Allocate1D<float>(PixelCount);
     using var rgba = accelerator.Allocate1D<byte>(PixelCount * 4);
     using var weights = accelerator.Allocate1D(Init.GaussianWeights());
 
     var integrate = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<Vec3>>(Kernels.IntegrateKernel);
-    var raster = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<Vec3>, ArrayView<float>, Matrix4x4>(Kernels.RasterKernel);
+    var raster = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<Vec3>, ArrayView<float>, ArrayView<float>, ArrayView<float>, Matrix4x4>(Kernels.RasterKernel);
     var threshold = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<float>, ArrayView<float>>(Kernels.ThresholdKernel);
     var blur = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<float>, ArrayView<float>, ArrayView<float>, int>(Kernels.BlurKernel);
-    var combine = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<float>, ArrayView<float>, ArrayView<byte>>(Kernels.CombineKernel);
+    var combine = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<float>, ArrayView<float>, ArrayView<byte>, int>(Kernels.CombineKernel);
+    var alpha = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<byte>>(Kernels.AlphaKernel);
 
     using var ffmpeg = new Ffmpeg(Constants.Width, Constants.Height, Constants.OutputFileName);
     var frameBytes = new byte[PixelCount * 4];
@@ -37,21 +40,28 @@ static class Program
     for (int frame = 0; frame < Constants.TotalFrames; frame++)
     {
       Matrix4x4 viewProjection = cam.GetViewProjection();
-      density.MemSetToZero();
+      densityR.MemSetToZero();
+      densityG.MemSetToZero();
+      densityB.MemSetToZero();
 
       for (int s = 0; s < Constants.SubstepsPerFrame; s++)
       {
         integrate(Constants.ParticleCount, positions.View);
-        raster(Constants.ParticleCount, positions.View, density.View, viewProjection);
+        raster(Constants.ParticleCount, positions.View, densityR.View, densityG.View, densityB.View, viewProjection);
       }
 
-      threshold(PixelCount, density.View, tempA.View);
-      blur(PixelCount, tempA.View, tempB.View, weights.View, 1);
-      blur(PixelCount, tempB.View, tempA.View, weights.View, 0);
-      combine(PixelCount, density.View, tempA.View, rgba.View);
+      var channels = new[] { densityR.View, densityG.View, densityB.View };
+      for (int c = 0; c < channels.Length; c++)
+      {
+        threshold(PixelCount, channels[c], tempA.View);
+        blur(PixelCount, tempA.View, tempB.View, weights.View, 1);
+        blur(PixelCount, tempB.View, tempA.View, weights.View, 0);
+        combine(PixelCount, channels[c], tempA.View, rgba.View, c);
+      }
+      alpha(PixelCount, rgba.View);
 
       rgba.CopyToCPU(frameBytes);
-      Axes.Draw(frameBytes, viewProjection);
+      Grid.Draw(frameBytes, viewProjection);
       ffmpeg.Write(frameBytes);
 
       if (frame % 30 == 0)

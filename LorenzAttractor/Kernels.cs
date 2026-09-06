@@ -1,5 +1,6 @@
 ﻿using ILGPU;
 
+using System;
 using System.Numerics;
 
 namespace Lorenz;
@@ -21,7 +22,9 @@ public static class Kernels
   public static void RasterKernel(
       Index1D i,
       ArrayView<Vec3> particles,
-      ArrayView<float> density,
+      ArrayView<float> densityR,
+      ArrayView<float> densityG,
+      ArrayView<float> densityB,
       Matrix4x4 vp)
   {
     var p = particles[i];
@@ -43,7 +46,48 @@ public static class Kernels
     if (px < 0 || px >= Constants.Width || py < 0 || py >= Constants.Height)
       return;
 
-    Atomic.Add(ref density[py * Constants.Width + px], 1.0f);
+    // Speed = magnitude of the Lorenz flow vector at this point (how fast the
+    // particle is currently moving through phase space), used to color it.
+    float dx = Constants.Sigma * (p.Y - p.X);
+    float dy = p.X * (Constants.Rho - p.Z) - p.Y;
+    float dz = p.X * p.Y - Constants.Beta * p.Z;
+    float speed = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+
+    // Compress unbounded speed into [0,1]; SpeedNormalization tunes sensitivity.
+    float t = speed / (speed + Constants.SpeedNormalization);
+
+    SpeedToColor(t, out float cr, out float cg, out float cb);
+
+    int idx = py * Constants.Width + px;
+    Atomic.Add(ref densityR[idx], cr);
+    Atomic.Add(ref densityG[idx], cg);
+    Atomic.Add(ref densityB[idx], cb);
+  }
+
+  // Maps normalized speed t in [0,1] to an RGB weight using a blue -> cyan ->
+  // green -> yellow -> red gradient (slow -> fast).
+  private static void SpeedToColor(float t, out float r, out float g, out float b)
+  {
+    if (t < 0.25f)
+    {
+      float f = t / 0.25f;
+      r = 0.0f; g = f; b = 1.0f;
+    }
+    else if (t < 0.5f)
+    {
+      float f = (t - 0.25f) / 0.25f;
+      r = 0.0f; g = 1.0f; b = 1.0f - f;
+    }
+    else if (t < 0.75f)
+    {
+      float f = (t - 0.5f) / 0.25f;
+      r = f; g = 1.0f; b = 0.0f;
+    }
+    else
+    {
+      float f = (t - 0.75f) / 0.25f;
+      r = 1.0f; g = 1.0f - f; b = 0.0f;
+    }
   }
 
   public static void ThresholdKernel(Index1D i, ArrayView<float> density, ArrayView<float> bright)
@@ -79,15 +123,18 @@ public static class Kernels
       Index1D i,
       ArrayView<float> density,
       ArrayView<float> bloom,
-      ArrayView<byte> rgba)
+      ArrayView<byte> rgba,
+      int channelOffset)
   {
     float v = density[i] * Constants.Exposure + bloom[i] * Constants.BloomStrength;
     v = v / (1.0f + v);
 
-    long o = (long)i.X * 4;
-    rgba[o + 0] = (byte)(v * Constants.TintR * 255.0f);
-    rgba[o + 1] = (byte)(v * Constants.TintG * 255.0f);
-    rgba[o + 2] = (byte)(v * Constants.TintB * 255.0f);
-    rgba[o + 3] = 255;
+    long o = (long)i.X * 4 + channelOffset;
+    rgba[o] = (byte)(v * 255.0f);
+  }
+
+  public static void AlphaKernel(Index1D i, ArrayView<byte> rgba)
+  {
+    rgba[(long)i.X * 4 + 3] = 255;
   }
 }
