@@ -3,8 +3,11 @@ using System.Numerics;
 
 namespace Lorenz;
 
-public static class Camera
+public class Camera
 {
+  private float Angle = 0.0f;
+  private readonly float AngleStep = 0.005f;
+
   public static Vector3 Center { get; } = new Vector3(Constants.CenterX, Constants.CenterY, Constants.CenterZ);
 
   public static Matrix4x4 Projection { get; } = Matrix4x4.CreatePerspectiveFieldOfView(
@@ -13,12 +16,13 @@ public static class Camera
         Constants.NearPlane,
         Constants.FarPlane);
 
-  public static Matrix4x4 GetViewProjection(int frame)
+  public Matrix4x4 GetViewProjection()
   {
-    float angle = 0.2f * ((float)frame / Constants.TotalFrames) * MathF.PI * 2.0f;
+    Angle += AngleStep;
+
     var eye = Center + new Vector3(
-        MathF.Cos(angle) * Constants.OrbitRadius,
-        MathF.Sin(angle) * Constants.OrbitRadius,
+        MathF.Cos(Angle) * Constants.OrbitRadius,
+        MathF.Sin(Angle) * Constants.OrbitRadius,
         Constants.OrbitHeight);
 
     return Matrix4x4.CreateLookAt(eye, Center, new Vector3(0, 0, 1)) * Projection;
