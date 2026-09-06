@@ -20,11 +20,11 @@ public static class Constants
   public const float InitRange = 30.0f;
   public const int Seed = 1234;
 
-  public const float OrbitRadius = 90.0f;
-  public const float OrbitHeight = 30.0f;
+  public const float OrbitRadius = 200.0f;
+  public const float OrbitHeight = 120.0f;
   public const float CenterX = 0.0f;
   public const float CenterY = 0.0f;
-  public const float CenterZ = 0.0f;
+  public const float CenterZ = 30.0f;
   public const float FovDegrees = 45.0f;
   public const float NearPlane = 0.1f;
   public const float FarPlane = 1000.0f;
@@ -41,5 +41,5 @@ public static class Constants
 
   public const int AxisSamples = 600;
   public const int AxisThickness = 1;
-  public const float AxisLength = 1000.0f;
+  public const float AxisLength = 100.0f;
 }

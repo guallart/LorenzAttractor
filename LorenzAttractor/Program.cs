@@ -2,7 +2,6 @@
 using ILGPU.Runtime;
 
 using System;
-using System.Diagnostics;
 using System.Numerics;
 
 namespace Lorenz;
@@ -31,16 +30,7 @@ static class Program
     var blur = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<float>, ArrayView<float>, ArrayView<float>, int>(Kernels.BlurKernel);
     var combine = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<float>, ArrayView<float>, ArrayView<byte>>(Kernels.CombineKernel);
 
-    var ffmpeg = Process.Start(new ProcessStartInfo
-    {
-      FileName = "ffmpeg",
-      Arguments = $"-y -f rawvideo -pixel_format rgba -video_size {Constants.Width}x{Constants.Height} " +
-                    $"-framerate {Constants.Fps} -i - -c:v libx264 -pix_fmt yuv420p {Constants.OutputFileName}",
-      RedirectStandardInput = true,
-      UseShellExecute = false
-    })!;
-    var pipe = ffmpeg.StandardInput.BaseStream;
-
+    using var ffmpeg = new Ffmpeg(Constants.Width, Constants.Height, Constants.OutputFileName);
     var frameBytes = new byte[PixelCount * 4];
     var cam = new Camera();
 
@@ -62,15 +52,12 @@ static class Program
 
       rgba.CopyToCPU(frameBytes);
       Axes.Draw(frameBytes, viewProjection);
-      pipe.Write(frameBytes, 0, frameBytes.Length);
+      ffmpeg.Write(frameBytes);
 
       if (frame % 30 == 0)
         Console.WriteLine($"frame {frame + 1}/{Constants.TotalFrames}");
     }
 
-    pipe.Flush();
-    ffmpeg.StandardInput.Close();
-    ffmpeg.WaitForExit();
     Console.WriteLine($"wrote {Constants.OutputFileName}");
   }
 }
