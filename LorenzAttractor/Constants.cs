@@ -2,13 +2,13 @@
 
 public static class Constants
 {
-  public const int ParticleCount = 300_000;
+  public const int ParticleCount = 1_000_000;
   public const string OutputFileName = @"lorenz.mp4";
 
   public const int Width = 1920;
   public const int Height = 1080;
   public const int Fps = 30;
-  public const int TotalFrames = Fps * 60;
+  public const int TotalFrames = Fps * 60 * 3;
 
   public const int SubstepsPerFrame = 8;
   public const float Dt = 5e-5f;
